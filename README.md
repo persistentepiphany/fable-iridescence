@@ -2,7 +2,7 @@
 
 # fable iridescence
 
-Three small rooms where light behaves the way it actually does.
+Three small rooms where light behaves realistically 
 
 <img src="assets/demo.gif" width="760" alt="A glass prism splitting a beam of light inside a dark rendered room">
 
@@ -19,7 +19,7 @@ Three small rooms where light behaves the way it actually does.
 
 | Page | What it is | How it renders |
 | --- | --- | --- |
-| [`iridescence/`](iridescence/index.html) | Glass sculptures you can turn under a movable light, with thin film iridescence and dispersion | Three.js physical materials |
+| [`iridescence/`](iridescence/index.html) | Glass sculptures you can turn under a movable light with thin film iridescence and dispersion | Three.js physical materials |
 | [`prism/`](prism/index.html) | A flat spectral ray tracer in the spirit of a certain album cover. Drag the prism, the lamp, and the aim ring | Canvas 2D, exact ray optics |
 | [`prism3d/`](prism3d/index.html) | The same prism standing in an enclosed dark room. A real beam, a real rainbow caustic on the wall, real shadows | WebGL2 path tracer with photon mapped caustics |
 
@@ -35,9 +35,6 @@ open fable-iridescence/prism3d/index.html
 The 3D room needs WebGL2 with float render targets, which every current desktop browser provides. The image starts grainy and refines in place while you watch, and any interaction restarts the refinement.
 
 ## The physics
-
-Nothing is faked with gradients or sprites. Every visible effect falls out of the optics.
-
 <details>
 <summary>What the tracers actually compute</summary>
 
@@ -69,4 +66,4 @@ Nothing is faked with gradients or sprites. Every visible effect falls out of th
 
 ## License
 
-MIT. Take the glass and go make rainbows.
+MIT. 
