@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>硝子 Iridescent Glass — a light study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0b0e15;
+    --gold:#e3a43b;
+    --bone:#efe9dc;
+    --mono:'IBM Plex Mono', monospace;
+    --serif:'Shippori Mincho', serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink)}
+  body{font-family:var(--mono);color:var(--bone)}
+  #stage{position:fixed;inset:0;width:100vw;height:100vh;display:block;cursor:grab}
+  #stage.dragging{cursor:grabbing}
+  #stage.lightmove{cursor:crosshair}
+
+  .grain{
+    position:fixed;inset:0;pointer-events:none;opacity:.45;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.25 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .vignette{
+    position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(115% 90% at 50% 45%, transparent 55%, rgba(4,6,10,.6) 100%);
+  }
+
+  header{
+    position:fixed;top:0;left:0;z-index:5;padding:28px 36px;pointer-events:none;
+  }
+  h1{
+    font-family:var(--serif);font-weight:800;font-size:clamp(22px,3vw,34px);
+    letter-spacing:.14em;line-height:1;display:flex;align-items:baseline;gap:14px;
+    text-shadow:0 2px 18px rgba(0,0,0,.6);
+  }
+  h1 .kanji{color:var(--gold);font-size:1.35em;text-shadow:0 0 26px rgba(227,164,59,.45)}
+  .sub{margin-top:10px;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:rgba(239,233,220,.62)}
+
+  #panel{
+    position:fixed;right:28px;top:50%;transform:translateY(-50%);z-index:5;
+    width:236px;padding:20px 20px 16px;
+    background:rgba(8,10,15,.62);backdrop-filter:blur(10px);
+    border:1px solid rgba(239,233,220,.22);border-radius:14px;
+    box-shadow:0 12px 44px rgba(0,0,0,.5);
+  }
+  #panel .p-title{
+    font-size:10px;letter-spacing:.34em;color:rgba(239,233,220,.55);
+    text-transform:uppercase;margin-bottom:14px;
+  }
+  .shapes{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .shapes button{
+    flex:1;appearance:none;border:1px solid rgba(239,233,220,.25);background:none;
+    border-radius:999px;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+    padding:7px 4px;color:rgba(239,233,220,.65);cursor:pointer;transition:all .25s;
+    min-width:48px;
+  }
+  .shapes button:hover{border-color:var(--gold);color:var(--bone)}
+  .shapes button.on{background:var(--gold);border-color:var(--gold);color:#141008}
+  .ctl{margin-bottom:13px}
+  .ctl label{
+    display:flex;justify-content:space-between;
+    font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(239,233,220,.72);margin-bottom:6px;
+  }
+  .ctl label span:last-child{color:var(--gold)}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:4px;border-radius:999px;
+    background:rgba(239,233,220,.18);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--gold);box-shadow:0 0 10px rgba(227,164,59,.6);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border:0;border-radius:50%;
+    background:var(--gold);box-shadow:0 0 10px rgba(227,164,59,.6);
+  }
+  .check{
+    display:flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:rgba(239,233,220,.72);cursor:pointer;user-select:none;
+    margin-top:2px;
+  }
+  .check .box{
+    width:13px;height:13px;border:1px solid rgba(239,233,220,.4);border-radius:3px;
+    display:grid;place-items:center;transition:all .2s;
+  }
+  .check.on .box{background:var(--gold);border-color:var(--gold)}
+
+  footer{
+    position:fixed;bottom:0;left:0;right:0;z-index:5;pointer-events:none;
+    display:flex;justify-content:space-between;align-items:flex-end;
+    padding:22px 36px;font-size:10px;letter-spacing:.28em;text-transform:uppercase;
+    color:rgba(239,233,220,.5);
+  }
+  footer .dot{color:var(--gold)}
+
+  #load{
+    position:fixed;inset:0;display:grid;place-items:center;z-index:9;
+    font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:rgba(239,233,220,.6);
+    background:var(--ink);transition:opacity .8s;
+  }
+  #load.gone{opacity:0;pointer-events:none}
+  @media (max-width:640px){
+    #panel{right:12px;width:200px;padding:14px}
+    header{padding:20px}
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="vignette"></div>
+<div class="grain"></div>
+<div id="load">blowing the glass…</div>
+
+<header>
+  <h1><span class="kanji">硝子</span> IRIDESCENT</h1>
+  <div class="sub">a study of light through glass</div>
+</header>
+
+<div id="panel">
+  <div class="p-title">— the glass —</div>
+  <div class="shapes" id="shapes">
+    <button data-s="knot" class="on">KNOT</button>
+    <button data-s="gem">GEM</button>
+    <button data-s="vessel">VESSEL</button>
+    <button data-s="shard">SHARD</button>
+  </div>
+  <div class="ctl">
+    <label><span>iridescence</span><span id="v-iri">1.00</span></label>
+    <input type="range" id="s-iri" min="0" max="1" step="0.01" value="1">
+  </div>
+  <div class="ctl">
+    <label><span>film thickness</span><span id="v-film">700</span></label>
+    <input type="range" id="s-film" min="150" max="1400" step="10" value="700">
+  </div>
+  <div class="ctl">
+    <label><span>roughness</span><span id="v-rough">0.05</span></label>
+    <input type="range" id="s-rough" min="0" max="0.45" step="0.005" value="0.05">
+  </div>
+  <div class="ctl">
+    <label><span>dispersion</span><span id="v-disp">2.5</span></label>
+    <input type="range" id="s-disp" min="0" max="8" step="0.1" value="2.5">
+  </div>
+  <div class="ctl">
+    <label><span>light power</span><span id="v-light">260</span></label>
+    <input type="range" id="s-light" min="20" max="800" step="10" value="260">
+  </div>
+  <div class="check on" id="c-orbit"><span class="box">✓</span><span>light auto-orbit</span></div>
+</div>
+
+<footer>
+  <span>drag to orbit · scroll to zoom · <b>hold shift + move</b> to carry the light</span>
+  <span><span class="dot">◆</span>&nbsp; thin-film interference, live</span>
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const TAU = Math.PI * 2;
+const canvas = document.getElementById('stage');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0b0e15');
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, .1, 100);
+camera.position.set(0, .6, 7);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = .06;
+controls.minDistance = 3;
+controls.maxDistance = 16;
+controls.enablePan = false;
+
+// environment — soft studio for the glass to refract
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+
+/* ---------- the glass ---------- */
+const mat = new THREE.MeshPhysicalMaterial({
+  transmission: 1,
+  thickness: 2.4,
+  roughness: .05,
+  ior: 1.45,
+  dispersion: 2.5,
+  iridescence: 1,
+  iridescenceIOR: 1.32,
+  iridescenceThicknessRange: [100, 700],
+  clearcoat: .5,
+  clearcoatRoughness: .1,
+  attenuationColor: new THREE.Color('#bfeee6'),
+  attenuationDistance: 4.5,
+  envMapIntensity: 1.1,
+  specularIntensity: 1
+});
+
+const GEOS = {
+  knot:   () => new THREE.TorusKnotGeometry(1.15, .42, 240, 40),
+  gem:    () => new THREE.IcosahedronGeometry(1.6, 0),
+  shard:  () => new THREE.OctahedronGeometry(1.8, 0),
+  vessel: () => {
+    const pts = [];
+    for (let i = 0; i <= 28; i++) {
+      const v = i / 28;
+      const r = .32 + Math.sin(v * Math.PI) * .85 - Math.pow(v, 6) * .35;
+      pts.push(new THREE.Vector2(Math.max(r, .12) * 1.15, (v - .5) * 3));
+    }
+    return new THREE.LatheGeometry(pts, 80);
+  }
+};
+
+let glass = new THREE.Mesh(GEOS.knot(), mat);
+scene.add(glass);
+
+function setShape(name) {
+  glass.geometry.dispose();
+  glass.geometry = GEOS[name]();
+  mat.flatShading = (name === 'gem' || name === 'shard');
+  mat.needsUpdate = true;
+}
+
+/* ---------- lights ---------- */
+scene.add(new THREE.HemisphereLight(0x8fa8b8, 0x0a0c12, .25));
+
+const lamp = new THREE.PointLight(0xfff4e0, 260, 60, 2);
+lamp.position.set(3.5, 2, -3.5);
+scene.add(lamp);
+
+// the visible bulb
+const bulb = new THREE.Mesh(
+  new THREE.SphereGeometry(.13, 20, 14),
+  new THREE.MeshBasicMaterial({ color: 0xfff2cf })
+);
+scene.add(bulb);
+const bulbGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeGlowTexture(), color: 0xffe9b8,
+  transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false
+}));
+bulbGlow.scale.setScalar(1.6);
+scene.add(bulbGlow);
+
+function makeGlowTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,240,210,1)');
+  grad.addColorStop(.3, 'rgba(255,225,160,.45)');
+  grad.addColorStop(1, 'rgba(255,220,150,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+const fill = new THREE.PointLight(0xe3a43b, 18, 30, 2);
+fill.position.set(-4, -2, 4);
+scene.add(fill);
+
+/* ---------- dust motes ---------- */
+const nP = 320, pPos = new Float32Array(nP * 3);
+for (let i = 0; i < nP; i++) {
+  const r = 6 + Math.random() * 18, th = Math.random() * TAU, ph = Math.acos(2 * Math.random() - 1);
+  pPos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+  pPos[i * 3 + 1] = r * Math.cos(ph) * .6;
+  pPos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+}
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+const dust = new THREE.Points(pGeo, new THREE.PointsMaterial({
+  color: 0xcbbfa0, size: .035, transparent: true, opacity: .5,
+  blending: THREE.AdditiveBlending, depthWrite: false
+}));
+scene.add(dust);
+
+/* ---------- light control ---------- */
+let autoOrbit = true;
+let lightAngle = .8;
+let shiftHeld = false;
+const raycaster = new THREE.Raycaster();
+
+addEventListener('keydown', e => {
+  if (e.key === 'Shift') { shiftHeld = true; controls.enabled = false; canvas.classList.add('lightmove'); }
+});
+addEventListener('keyup', e => {
+  if (e.key === 'Shift') { shiftHeld = false; controls.enabled = true; canvas.classList.remove('lightmove'); }
+});
+addEventListener('pointermove', e => {
+  if (!shiftHeld) return;
+  const nx = (e.clientX / innerWidth) * 2 - 1, ny = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera({ x: nx, y: ny }, camera);
+  const dist = camera.position.length() + 1.5; // just behind the glass, so light passes through it
+  lamp.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, dist);
+  setOrbitCheck(false);
+});
+canvas.addEventListener('pointerdown', () => canvas.classList.add('dragging'));
+addEventListener('pointerup', () => canvas.classList.remove('dragging'));
+
+/* ---------- panel ---------- */
+const $ = id => document.getElementById(id);
+document.querySelectorAll('#shapes button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#shapes button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    setShape(b.dataset.s);
+  });
+});
+function bind(slider, out, fmt, apply) {
+  $(slider).addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    $(out).textContent = fmt(v);
+    apply(v);
+  });
+}
+bind('s-iri', 'v-iri', v => v.toFixed(2), v => mat.iridescence = v);
+bind('s-film', 'v-film', v => v.toFixed(0), v => mat.iridescenceThicknessRange = [100, v]);
+bind('s-rough', 'v-rough', v => v.toFixed(2), v => mat.roughness = v);
+bind('s-disp', 'v-disp', v => v.toFixed(1), v => mat.dispersion = v);
+bind('s-light', 'v-light', v => v.toFixed(0), v => lamp.intensity = v);
+
+const cOrbit = $('c-orbit');
+function setOrbitCheck(on) {
+  autoOrbit = on;
+  cOrbit.classList.toggle('on', on);
+}
+cOrbit.addEventListener('click', () => setOrbitCheck(!autoOrbit));
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  glass.rotation.y += dt * .25;
+  glass.rotation.x = Math.sin(t * .17) * .25;
+
+  if (autoOrbit) {
+    lightAngle += dt * .5;
+    lamp.position.set(
+      Math.cos(lightAngle) * 4.2,
+      Math.sin(t * .6) * 2.4,
+      Math.sin(lightAngle) * 4.2
+    );
+  }
+  bulb.position.copy(lamp.position);
+  bulbGlow.position.copy(lamp.position);
+  const flicker = 1 + Math.sin(t * 11) * .03 + Math.sin(t * 23) * .02;
+  bulbGlow.scale.setScalar(1.4 * flicker + lamp.intensity / 400);
+
+  dust.rotation.y = t * .012;
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+document.getElementById('load').classList.add('gone');
+frame();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# local experiments not part of this repo
+koi-pond/
+.claude/
+
+# raw recordings
+*.mov
+*.mp4
+
+.DS_Store
+
+# raw recordings kept out of the repo
+cubedemo.gif

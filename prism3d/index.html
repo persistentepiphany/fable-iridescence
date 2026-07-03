@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prism Room — light, traced for real</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#08090d;
+    --gold:#e3a43b;
+    --bone:#efe9dc;
+    --mono:'IBM Plex Mono', monospace;
+    --serif:'Shippori Mincho', serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink)}
+  body{font-family:var(--mono);color:var(--bone)}
+  #stage{position:fixed;inset:0;width:100vw;height:100vh;display:block;cursor:default}
+
+  .grain{
+    position:fixed;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.25 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .vignette{
+    position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(120% 95% at 50% 45%, transparent 55%, rgba(2,3,6,.6) 100%);
+  }
+
+  header{position:fixed;top:0;left:0;z-index:5;padding:28px 36px;pointer-events:none}
+  h1{
+    font-family:var(--serif);font-weight:800;font-size:clamp(22px,3vw,34px);
+    letter-spacing:.14em;line-height:1;display:flex;align-items:baseline;gap:14px;
+    text-shadow:0 2px 18px rgba(0,0,0,.6);
+  }
+  h1 .kanji{color:var(--gold);font-size:1.35em;text-shadow:0 0 26px rgba(227,164,59,.45)}
+  .sub{margin-top:10px;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:rgba(239,233,220,.62)}
+
+  #panel{
+    position:fixed;right:28px;top:50%;transform:translateY(-50%);z-index:5;
+    width:238px;padding:20px 20px 16px;
+    background:rgba(6,8,12,.66);backdrop-filter:blur(10px);
+    border:1px solid rgba(239,233,220,.22);border-radius:14px;
+    box-shadow:0 12px 44px rgba(0,0,0,.55);
+  }
+  #panel .p-title{
+    font-size:10px;letter-spacing:.34em;color:rgba(239,233,220,.55);
+    text-transform:uppercase;margin-bottom:6px;
+  }
+  #abbe{
+    font-size:9.5px;letter-spacing:.12em;color:rgba(239,233,220,.45);
+    margin-bottom:4px;white-space:nowrap;
+  }
+  #abbe b{color:var(--gold);font-weight:500}
+  #spp{
+    font-size:9.5px;letter-spacing:.12em;color:rgba(239,233,220,.45);
+    margin-bottom:14px;white-space:nowrap;
+  }
+  #spp b{color:var(--gold);font-weight:500}
+  .ctl{margin-bottom:12px}
+  .ctl label{
+    display:flex;justify-content:space-between;
+    font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(239,233,220,.72);margin-bottom:6px;
+  }
+  .ctl label span:last-child{color:var(--gold)}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:4px;border-radius:999px;
+    background:rgba(239,233,220,.18);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--gold);box-shadow:0 0 10px rgba(227,164,59,.6);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border:0;border-radius:50%;
+    background:var(--gold);box-shadow:0 0 10px rgba(227,164,59,.6);
+  }
+  .check{
+    display:flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:rgba(239,233,220,.72);cursor:pointer;user-select:none;
+  }
+  .check .box{
+    width:13px;height:13px;border:1px solid rgba(239,233,220,.4);border-radius:3px;
+    display:grid;place-items:center;font-size:9px;color:#141008;transition:all .2s;
+  }
+  .check.on .box{background:var(--gold);border-color:var(--gold)}
+
+  footer{
+    position:fixed;bottom:0;left:0;right:0;z-index:5;pointer-events:none;
+    display:flex;justify-content:space-between;align-items:flex-end;
+    padding:22px 36px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+    color:rgba(239,233,220,.5);
+  }
+  footer .dot{color:var(--gold)}
+  footer b{font-weight:500;color:rgba(239,233,220,.75)}
+  footer a{color:var(--gold);text-decoration:none;pointer-events:auto}
+  footer a:hover{text-decoration:underline}
+
+  #err{
+    position:fixed;inset:0;display:none;place-items:center;z-index:9;
+    background:var(--ink);
+  }
+  #err .card{
+    max-width:420px;padding:34px 38px;border:1px solid rgba(227,164,59,.5);
+    border-radius:14px;text-align:center;
+  }
+  #err .card h2{font-family:var(--serif);color:var(--gold);letter-spacing:.14em;margin-bottom:14px}
+  #err .card p{font-size:11px;line-height:1.8;letter-spacing:.08em;color:rgba(239,233,220,.7)}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<div id="panel">
+  <div class="p-title">— the dark room —</div>
+  <div id="abbe">n_d 1.520 · Abbe V_d 36.2</div>
+  <div id="spp">samples <b>0</b> spp</div>
+  <div class="ctl">
+    <label><span>index n_d</span><span id="v-ior">1.520</span></label>
+    <input type="range" id="s-ior" min="1.30" max="1.90" step="0.005" value="1.52">
+  </div>
+  <div class="ctl">
+    <label><span>dispersion</span><span id="v-disp">0.016</span></label>
+    <input type="range" id="s-disp" min="0" max="0.05" step="0.001" value="0.016">
+  </div>
+  <div class="ctl">
+    <label><span>beam power</span><span id="v-pow">1.5</span></label>
+    <input type="range" id="s-pow" min="0.3" max="4" step="0.05" value="1.5">
+  </div>
+  <div class="ctl">
+    <label><span>dust / fog</span><span id="v-fog">0.35</span></label>
+    <input type="range" id="s-fog" min="0" max="1" step="0.01" value="0.35">
+  </div>
+  <div class="ctl">
+    <label><span>floor gloss</span><span id="v-gloss">0.75</span></label>
+    <input type="range" id="s-gloss" min="0" max="1" step="0.01" value="0.75">
+  </div>
+  <div class="ctl">
+    <label><span>exposure</span><span id="v-exp">1.0</span></label>
+    <input type="range" id="s-exp" min="0.3" max="3" step="0.05" value="1">
+  </div>
+  <div class="check" id="c-rot"><span class="box">✓</span><span>slow rotate</span></div>
+</div>
+
+<footer>
+  <span><b>drag</b> to orbit · <b>scroll</b> to dolly · <b>drag</b> prism / lamp · <b>q e</b> rotate the glass</span>
+  <span><a href="../prism/index.html">← flat version</a> &nbsp;<span class="dot">◆</span>&nbsp; real light transport</span>
+</footer>
+
+<div id="err"><div class="card">
+  <h2>Prism Room</h2>
+  <p>This room is rendered with a real path tracer and needs WebGL2 with float render targets.
+     Your browser declined. Try a recent desktop Chrome, Edge, Firefox or Safari.</p>
+</div></div>
+
+<script>
+(() => {
+'use strict';
+const TAU = Math.PI * 2;
+const canvas = document.getElementById('stage');
+const $ = id => document.getElementById(id);
+
+/* ============ GL bootstrap ============ */
+const gl = canvas.getContext('webgl2', { antialias: false, depth: false, alpha: false });
+function fail() { $('err').style.display = 'grid'; throw new Error('webgl2/float unsupported'); }
+if (!gl) fail();
+let ACC_FMT = gl.RGBA32F;
+if (!gl.getExtension('EXT_color_buffer_float')) {
+  if (gl.getExtension('EXT_color_buffer_half_float')) ACC_FMT = gl.RGBA16F;
+  else fail();
+}
+const LIN_OK = !!gl.getExtension('OES_texture_float_linear');
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(s), src);
+    throw new Error('shader compile failed');
+  }
+  return s;
+}
+function program(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(p));
+    throw new Error('link failed');
+  }
+  return p;
+}
+
+/* ============ shared physics constants ============ */
+const LAMBDA_D = .5876, LAMBDA_F = .4861, LAMBDA_C = .6563;
+const ROOM = { x: 3.2, y: 2.6, z: 4.2 };       // half-x, height, half-z
+const LIGHT = { cx: 0, cz: -0.7, hx: .7, hz: .5, rgb: [1.0, .82, .58], I: 2.4 };
+const SEG_MAX = 48;
+const params = {
+  nd: 1.52, B: 0.016, power: 1.5, fog: 0.35,
+  gloss: 0.75, exposure: 1.0, rotate: false
+};
+const prism = { x: 0.1, z: 0.2, rot: -1.10, R: 0.55, h: 0.5, baseY: 0.38 };
+const plinth = { hw: 0.42, h: 0.38 };
+const lamp = { x: -2.35, y: 1.05, z: -0.85, r: 0.09 };
+
+const nOf = lam => params.nd + params.B * (1 / (lam * lam) - 1 / (LAMBDA_D * LAMBDA_D));
+
+function wl2rgb(w) {
+  let r = 0, g = 0, b = 0;
+  if (w < 440)      { r = -(w - 440) / 60; b = 1; }
+  else if (w < 490) { g = (w - 440) / 50; b = 1; }
+  else if (w < 510) { g = 1; b = -(w - 510) / 20; }
+  else if (w < 580) { r = (w - 510) / 70; g = 1; }
+  else if (w < 645) { r = 1; g = -(w - 645) / 65; }
+  else              { r = 1; }
+  let s = 1;
+  if (w > 660) s = .35 + .65 * (700 - w) / 40;
+  else if (w < 420) s = .35 + .65 * (w - 380) / 40;
+  return [r * s, g * s, b * s];
+}
+/* channel normalisation so hero-wavelength sampling averages to white */
+const WLNORM = (() => {
+  const sum = [0, 0, 0]; const N = 256;
+  for (let i = 0; i < N; i++) {
+    const c = wl2rgb(400 + 300 * (i + .5) / N);
+    sum[0] += c[0]; sum[1] += c[1]; sum[2] += c[2];
+  }
+  return [N / sum[0], N / sum[1], N / sum[2]];
+})();
+
+/* ============ CPU vector geometry ============ */
+/* prism = convex intersection of 5 planes: 3 sides + top + bottom */
+let PLANES = []; // {n:[x,y,z], d}
+function buildPlanes() {
+  PLANES = [];
+  const cy = prism.baseY + prism.h;             // center height
+  const apo = prism.R * 0.5;                    // apothem of equilateral triangle
+  for (let i = 0; i < 3; i++) {
+    const a = prism.rot + TAU * i / 3 + Math.PI / 3;
+    const n = [Math.cos(a), 0, Math.sin(a)];
+    PLANES.push({ n, d: n[0] * prism.x + n[2] * prism.z + apo });
+  }
+  PLANES.push({ n: [0, 1, 0], d: cy + prism.h });
+  PLANES.push({ n: [0, -1, 0], d: -(cy - prism.h) });
+}
+
+function dot3(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+function norm3(a) {
+  const l = Math.hypot(a[0], a[1], a[2]) || 1;
+  return [a[0] / l, a[1] / l, a[2] / l];
+}
+
+/* ray vs convex prism: {tN,tF,nN,nF} or null */
+function prismHit(o, d) {
+  let tN = -1e9, tF = 1e9, nN = null, nF = null;
+  for (const pl of PLANES) {
+    const dn = dot3(d, pl.n);
+    const dist = pl.d - dot3(o, pl.n);
+    if (Math.abs(dn) < 1e-9) { if (dist < 0) return null; continue; }
+    const t = dist / dn;
+    if (dn < 0) { if (t > tN) { tN = t; nN = pl.n; } }
+    else        { if (t < tF) { tF = t; nF = pl.n; } }
+  }
+  if (tN >= tF || tF <= 0) return null;
+  return { tN, tF, nN, nF };
+}
+
+/* ray vs room interior: first wall along +t. returns {t, face, n} */
+function roomHit(o, d) {
+  let t = 1e9, face = -1;
+  const lim = [[-ROOM.x, ROOM.x], [0, ROOM.y], [-ROOM.z, ROOM.z]];
+  for (let ax = 0; ax < 3; ax++) {
+    if (Math.abs(d[ax]) < 1e-9) continue;
+    for (let s = 0; s < 2; s++) {
+      const tt = (lim[ax][s] - o[ax]) / d[ax];
+      if (tt > 1e-4 && tt < t) { t = tt; face = ax * 2 + s; }
+    }
+  }
+  const N = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]][face];
+  return { t, face, n: N };
+}
+
+/* AABB test (plinth, lamp housing) → {t,n} or null (from outside) */
+function boxHit(o, d, mn, mx) {
+  let tN = -1e9, tF = 1e9, nA = 0, nS = 0;
+  for (let a = 0; a < 3; a++) {
+    if (Math.abs(d[a]) < 1e-9) { if (o[a] < mn[a] || o[a] > mx[a]) return null; continue; }
+    let t1 = (mn[a] - o[a]) / d[a], t2 = (mx[a] - o[a]) / d[a];
+    let s = -1;
+    if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; s = 1; }
+    if (t1 > tN) { tN = t1; nA = a; nS = s; }
+    if (t2 < tF) tF = t2;
+  }
+  if (tN >= tF || tN <= 1e-4) return null;
+  const n = [0, 0, 0]; n[nA] = nS;
+  return { t: tN, n };
+}
+function plinthBox() {
+  return [[prism.x - plinth.hw, 0, prism.z - plinth.hw],
+          [prism.x + plinth.hw, plinth.h, prism.z + plinth.hw]];
+}
+function lampBox() {
+  return [[lamp.x - .13, lamp.y - .11, lamp.z - .13],
+          [lamp.x + .13, lamp.y + .11, lamp.z + .13]];
+}
+function beamDir() {
+  return norm3([prism.x - lamp.x, prism.baseY + prism.h * .92 - lamp.y, prism.z - lamp.z]);
+}
+
+/* ============ photon-map atlas ============ */
+/* 6 face tiles, 3 cols x 2 rows, T x T each. face: 0 -X | 1 +X | 2 floor | 3 ceil | 4 -Z | 5 +Z */
+const T = 224, AW = T * 3, AH = T * 2;
+const atlas = new Float32Array(AW * AH * 4);
+let photonsEmitted = 0;
+
+function faceUV(face, p) {
+  switch (face) {
+    case 0: return [(p[2] + ROOM.z) / (2 * ROOM.z), p[1] / ROOM.y];
+    case 1: return [(p[2] + ROOM.z) / (2 * ROOM.z), p[1] / ROOM.y];
+    case 2: return [(p[0] + ROOM.x) / (2 * ROOM.x), (p[2] + ROOM.z) / (2 * ROOM.z)];
+    case 3: return [(p[0] + ROOM.x) / (2 * ROOM.x), (p[2] + ROOM.z) / (2 * ROOM.z)];
+    case 4: return [(p[0] + ROOM.x) / (2 * ROOM.x), p[1] / ROOM.y];
+    case 5: return [(p[0] + ROOM.x) / (2 * ROOM.x), p[1] / ROOM.y];
+  }
+}
+/* room faces indexed by roomHit: 0:-X 1:+X 2:floor 3:ceil 4:-Z 5:+Z */
+const FACE_OF = [0, 1, 2, 3, 4, 5];
+
+function splat(face, p, r, g, b) {
+  const uv = faceUV(face, p);
+  const tx = (face % 3) * T, ty = (face / 3 | 0) * T;
+  const fx = Math.min(T - 1.001, Math.max(0, uv[0] * T - .5));
+  const fy = Math.min(T - 1.001, Math.max(0, uv[1] * T - .5));
+  const x0 = fx | 0, y0 = fy | 0, ax = fx - x0, ay = fy - y0;
+  for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
+    const w = (dx ? ax : 1 - ax) * (dy ? ay : 1 - ay);
+    const idx = ((ty + y0 + dy) * AW + tx + x0 + dx) * 4;
+    atlas[idx] += r * w; atlas[idx + 1] += g * w; atlas[idx + 2] += b * w;
+  }
+}
+
+/* trace ONE photon through the scene; deposit at first diffuse hit */
+function tracePhoton(rng) {
+  const lam = 400 + 300 * rng();
+  const rgb = wl2rgb(lam);
+  const n = nOf(lam / 1000);
+  const dir0 = beamDir();
+  /* orthonormal frame around beam */
+  const up = Math.abs(dir0[1]) > .9 ? [1, 0, 0] : [0, 1, 0];
+  let u = norm3([dir0[1]*up[2]-dir0[2]*up[1], dir0[2]*up[0]-dir0[0]*up[2], dir0[0]*up[1]-dir0[1]*up[0]]);
+  let v = [dir0[1]*u[2]-dir0[2]*u[1], dir0[2]*u[0]-dir0[0]*u[2], dir0[0]*u[1]-dir0[1]*u[0]];
+  /* aperture jitter (disc) + slight divergence */
+  const ra = Math.sqrt(rng()) * lamp.r, aa = rng() * TAU;
+  const j1 = Math.cos(aa) * ra, j2 = Math.sin(aa) * ra;
+  const dv = 0.006;
+  const g1 = (rng() - .5) * dv, g2 = (rng() - .5) * dv;
+  let o = [lamp.x + u[0]*j1 + v[0]*j2 + dir0[0]*.14,
+           lamp.y + u[1]*j1 + v[1]*j2 + dir0[1]*.14,
+           lamp.z + u[2]*j1 + v[2]*j2 + dir0[2]*.14];
+  let d = norm3([dir0[0] + u[0]*g1 + v[0]*g2, dir0[1] + u[1]*g1 + v[1]*g2, dir0[2] + u[2]*g1 + v[2]*g2]);
+  let w = 1, inside = false;
+
+  for (let b = 0; b < 8; b++) {
+    const ph = prismHit(o, d);
+    const rh = roomHit(o, d);
+    const bh = boxHit(o, d, ...plinthBox());
+    let tGlass = 1e9;
+    if (ph) tGlass = inside ? ph.tF : (ph.tN > 1e-4 ? ph.tN : 1e9);
+
+    /* nearest event */
+    let tMin = rh.t, ev = 'room';
+    if (bh && bh.t < tMin) { tMin = bh.t; ev = 'plinth'; }
+    if (tGlass < tMin) { tMin = tGlass; ev = 'glass'; }
+
+    if (ev === 'plinth') return; // absorbed by dark plinth
+    if (ev === 'room') {
+      const p = [o[0] + d[0]*rh.t, o[1] + d[1]*rh.t, o[2] + d[2]*rh.t];
+      splat(FACE_OF[rh.face], p, rgb[0]*w, rgb[1]*w, rgb[2]*w);
+      return;
+    }
+    /* glass interface */
+    const hitN = inside ? ph.nF : ph.nN;
+    const p = [o[0] + d[0]*tMin, o[1] + d[1]*tMin, o[2] + d[2]*tMin];
+    if (inside) w *= Math.exp(-0.35 * tMin);   // Beer–Lambert, per metre
+    if (w < .01) return;
+
+    let nx = hitN[0], ny = hitN[1], nz = hitN[2];
+    let cosI = -(d[0]*nx + d[1]*ny + d[2]*nz);
+    if (cosI < 0) { nx = -nx; ny = -ny; nz = -nz; cosI = -cosI; }
+    const n1 = inside ? n : 1, n2 = inside ? 1 : n;
+    const eta = n1 / n2;
+    const sinT2 = eta * eta * (1 - cosI * cosI);
+    let R = 1, cosT = 0;
+    if (sinT2 < 1) {
+      cosT = Math.sqrt(1 - sinT2);
+      const rs = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT);
+      const rp = (n1 * cosT - n2 * cosI) / (n1 * cosT + n2 * cosI);
+      R = (rs * rs + rp * rp) / 2;
+    }
+    if (rng() < R) {  // reflect
+      d = norm3([d[0] + 2*cosI*nx, d[1] + 2*cosI*ny, d[2] + 2*cosI*nz]);
+    } else {          // refract
+      d = norm3([eta*d[0] + (eta*cosI - cosT)*nx,
+                 eta*d[1] + (eta*cosI - cosT)*ny,
+                 eta*d[2] + (eta*cosI - cosT)*nz]);
+      inside = !inside;
+    }
+    o = [p[0] + d[0]*2e-4, p[1] + d[1]*2e-4, p[2] + d[2]*2e-4];
+  }
+}
+
+/* ============ CPU beam tree → volumetric segments ============ */
+let SEGS = []; // {a:[3], b:[3], c:[3] rgb*I}
+function buildBeamTree() {
+  SEGS = [];
+  const K = 8;
+  const dir0 = beamDir();
+  const stack = [];
+  for (let i = 0; i < K; i++) {
+    const nm = 400 + 300 * (i + .5) / K;
+    stack.push({
+      o: [lamp.x + dir0[0]*.14, lamp.y + dir0[1]*.14, lamp.z + dir0[2]*.14],
+      d: dir0.slice(), I: 1 / K, inside: false, b: 0,
+      n: nOf(nm / 1000), rgb: wl2rgb(nm)
+    });
+  }
+  let guard = 0;
+  while (stack.length && guard++ < 400 && SEGS.length < SEG_MAX) {
+    const r = stack.pop();
+    if (r.I < .004 || r.b > 6) continue;
+    const ph = prismHit(r.o, r.d);
+    const rh = roomHit(r.o, r.d);
+    const bh = boxHit(r.o, r.d, ...plinthBox());
+    let tGlass = 1e9;
+    if (ph) tGlass = r.inside ? ph.tF : (ph.tN > 1e-4 ? ph.tN : 1e9);
+    let tMin = rh.t, ev = 'room';
+    if (bh && bh.t < tMin) { tMin = bh.t; ev = 'plinth'; }
+    if (tGlass < tMin) { tMin = tGlass; ev = 'glass'; }
+
+    let I = r.I * (r.inside ? Math.exp(-0.35 * tMin) : 1);
+    SEGS.push({
+      a: r.o.slice(),
+      b: [r.o[0]+r.d[0]*tMin, r.o[1]+r.d[1]*tMin, r.o[2]+r.d[2]*tMin],
+      c: [r.rgb[0]*I, r.rgb[1]*I, r.rgb[2]*I]
+    });
+    if (ev !== 'glass' || I < .004) continue;
+
+    const hitN = r.inside ? ph.nF : ph.nN;
+    let nx = hitN[0], ny = hitN[1], nz = hitN[2];
+    let cosI = -(r.d[0]*nx + r.d[1]*ny + r.d[2]*nz);
+    if (cosI < 0) { nx = -nx; ny = -ny; nz = -nz; cosI = -cosI; }
+    const n1 = r.inside ? r.n : 1, n2 = r.inside ? 1 : r.n;
+    const eta = n1 / n2;
+    const sinT2 = eta * eta * (1 - cosI * cosI);
+    let R = 1, cosT = 0;
+    if (sinT2 < 1) {
+      cosT = Math.sqrt(1 - sinT2);
+      const rs = (n1*cosI - n2*cosT) / (n1*cosI + n2*cosT);
+      const rp = (n1*cosT - n2*cosI) / (n1*cosT + n2*cosI);
+      R = (rs*rs + rp*rp) / 2;
+    }
+    const p = [r.o[0]+r.d[0]*tMin, r.o[1]+r.d[1]*tMin, r.o[2]+r.d[2]*tMin];
+    const rd = norm3([r.d[0]+2*cosI*nx, r.d[1]+2*cosI*ny, r.d[2]+2*cosI*nz]);
+    stack.push({ o: [p[0]+rd[0]*2e-4, p[1]+rd[1]*2e-4, p[2]+rd[2]*2e-4],
+                 d: rd, I: I * R, inside: r.inside, b: r.b + 1, n: r.n, rgb: r.rgb });
+    if (sinT2 < 1) {
+      const td = norm3([eta*r.d[0] + (eta*cosI-cosT)*nx,
+                        eta*r.d[1] + (eta*cosI-cosT)*ny,
+                        eta*r.d[2] + (eta*cosI-cosT)*nz]);
+      stack.push({ o: [p[0]+td[0]*2e-4, p[1]+td[1]*2e-4, p[2]+td[2]*2e-4],
+                   d: td, I: I * (1 - R), inside: !r.inside, b: r.b + 1, n: r.n, rgb: r.rgb });
+    }
+  }
+}
+
+/* xorshift rng for photons */
+let rngState = 12345;
+function rng() {
+  rngState ^= rngState << 13; rngState ^= rngState >>> 17; rngState ^= rngState << 5;
+  return ((rngState >>> 0) / 4294967296);
+}
+
+/* ============ GLSL ============ */
+const VS = `#version 300 es
+layout(location=0) in vec2 aP;
+out vec2 vUv;
+void main(){ vUv = aP*.5+.5; gl_Position = vec4(aP,0.,1.); }`;
+
+const FS_PT = `#version 300 es
+precision highp float;
+precision highp int;
+in vec2 vUv;
+out vec4 frag;
+
+uniform vec2  uRes;
+uniform uint  uFrame;
+uniform float uSpp;
+uniform vec3  uEye;
+uniform mat3  uCam;          // columns: right, up, -forward basis
+uniform float uFovT;         // tan(fov/2)
+uniform sampler2D uPrev;
+uniform sampler2D uPhoton;
+uniform float uPhScale;      // power*C/emitted (0 while empty)
+uniform vec3  uRoom;         // half-x, height, half-z
+uniform vec3  uPlN[5];
+uniform float uPlD[5];
+uniform vec3  uPlinthMin, uPlinthMax;
+uniform vec3  uLampPos, uLampDir;
+uniform vec4  uLightRect;    // cx, cz, hx, hz  (on ceiling)
+uniform vec3  uLightE;       // emitted radiance
+uniform float uNd, uB, uPower, uFog, uGloss;
+uniform int   uSegN;
+uniform vec3  uSegA[48];
+uniform vec3  uSegB[48];
+uniform vec3  uSegC[48];
+uniform vec3  uWlNorm;
+
+const float PI = 3.141592653589793;
+const int   TT = 224;
+
+/* ---- rng ---- */
+uint seed;
+uint hashu(uint x){ x^=x>>16u; x*=0x7feb352dU; x^=x>>15u; x*=0x846ca68bU; x^=x>>16u; return x; }
+float rnd(){ seed = hashu(seed); return float(seed) * (1.0/4294967296.0); }
+
+/* ---- spectral ---- */
+vec3 wl2rgb(float w){
+  float r=0., g=0., b=0.;
+  if(w<440.){ r=-(w-440.)/60.; b=1.; }
+  else if(w<490.){ g=(w-440.)/50.; b=1.; }
+  else if(w<510.){ g=1.; b=-(w-510.)/20.; }
+  else if(w<580.){ r=(w-510.)/70.; g=1.; }
+  else if(w<645.){ r=1.; g=-(w-645.)/65.; }
+  else r=1.;
+  float s=1.;
+  if(w>660.) s=.35+.65*(700.-w)/40.;
+  else if(w<420.) s=.35+.65*(w-380.)/40.;
+  return vec3(r,g,b)*s;
+}
+
+/* ---- intersections ---- */
+/* prism convex; returns true w/ near+far */
+bool prismI(vec3 o, vec3 d, out float tN, out float tF, out vec3 nN, out vec3 nF){
+  tN=-1e9; tF=1e9; nN=vec3(0); nF=vec3(0);
+  for(int i=0;i<5;i++){
+    float dn = dot(d, uPlN[i]);
+    float dist = uPlD[i] - dot(o, uPlN[i]);
+    if(abs(dn) < 1e-9){ if(dist < 0.) return false; continue; }
+    float t = dist/dn;
+    if(dn < 0.){ if(t > tN){ tN=t; nN=uPlN[i]; } }
+    else       { if(t < tF){ tF=t; nF=uPlN[i]; } }
+  }
+  return tN < tF && tF > 0.;
+}
+/* room interior: face 0:-X 1:+X 2:floor 3:ceil 4:-Z 5:+Z */
+float roomI(vec3 o, vec3 d, out int face, out vec3 n){
+  float t = 1e9; face = -1;
+  vec3 mn = vec3(-uRoom.x, 0., -uRoom.z), mx = vec3(uRoom.x, uRoom.y, uRoom.z);
+  for(int a=0;a<3;a++){
+    float da = a==0?d.x:(a==1?d.y:d.z);
+    float oa = a==0?o.x:(a==1?o.y:o.z);
+    if(abs(da) < 1e-9) continue;
+    float t1 = ((a==0?mn.x:(a==1?mn.y:mn.z)) - oa)/da;
+    float t2 = ((a==0?mx.x:(a==1?mx.y:mx.z)) - oa)/da;
+    if(t1 > 1e-4 && t1 < t){ t=t1; face=a*2; }
+    if(t2 > 1e-4 && t2 < t){ t=t2; face=a*2+1; }
+  }
+  n = vec3(0);
+  if(face==0) n=vec3(1,0,0); else if(face==1) n=vec3(-1,0,0);
+  else if(face==2) n=vec3(0,1,0); else if(face==3) n=vec3(0,-1,0);
+  else if(face==4) n=vec3(0,0,1); else n=vec3(0,0,-1);
+  /* remap to atlas face order 0:-X 1:+X 2:floor 3:ceil 4:-Z 5:+Z */
+  return t;
+}
+bool boxI(vec3 o, vec3 d, vec3 mn, vec3 mx, out float t, out vec3 n){
+  vec3 id = 1./d;
+  vec3 t1 = (mn-o)*id, t2 = (mx-o)*id;
+  vec3 tl = min(t1,t2), th = max(t1,t2);
+  float tN = max(max(tl.x,tl.y),tl.z);
+  float tF = min(min(th.x,th.y),th.z);
+  if(tN >= tF || tN <= 1e-4){ t=1e9; n=vec3(0); return false; }
+  t = tN;
+  if(tN==tl.x) n=vec3(-sign(d.x),0,0);
+  else if(tN==tl.y) n=vec3(0,-sign(d.y),0);
+  else n=vec3(0,0,-sign(d.z));
+  return true;
+}
+float sphereI(vec3 o, vec3 d, vec3 c, float r){
+  vec3 oc = o-c;
+  float b = dot(oc,d), cc = dot(oc,oc)-r*r;
+  float disc = b*b-cc;
+  if(disc < 0.) return 1e9;
+  float t = -b-sqrt(disc);
+  return t > 1e-4 ? t : 1e9;
+}
+
+/* ---- photon map lookup ---- */
+vec2 faceUV(int face, vec3 p){
+  if(face<2)      return vec2((p.z+uRoom.z)/(2.*uRoom.z), p.y/uRoom.y);
+  else if(face<4) return vec2((p.x+uRoom.x)/(2.*uRoom.x), (p.z+uRoom.z)/(2.*uRoom.z));
+  else            return vec2((p.x+uRoom.x)/(2.*uRoom.x), p.y/uRoom.y);
+}
+float faceArea(int face){
+  if(face<2)      return (2.*uRoom.z)*(uRoom.y);
+  else if(face<4) return (2.*uRoom.x)*(2.*uRoom.z);
+  else            return (2.*uRoom.x)*(uRoom.y);
+}
+vec3 photonIrr(int face, vec3 p){
+  if(uPhScale <= 0.) return vec3(0);
+  vec2 f = faceUV(face,p)*float(TT) - .5;
+  f = clamp(f, vec2(0.), vec2(float(TT)-1.001));
+  ivec2 i0 = ivec2(f);
+  i0 = min(i0, ivec2(TT-2));
+  vec2 fr = f - vec2(i0);
+  ivec2 base = ivec2((face%3)*TT, (face/3)*TT);
+  vec3 c00 = texelFetch(uPhoton, base+i0,               0).rgb;
+  vec3 c10 = texelFetch(uPhoton, base+i0+ivec2(1,0),    0).rgb;
+  vec3 c01 = texelFetch(uPhoton, base+i0+ivec2(0,1),    0).rgb;
+  vec3 c11 = texelFetch(uPhoton, base+i0+ivec2(1,1),    0).rgb;
+  vec3 flux = mix(mix(c00,c10,fr.x), mix(c01,c11,fr.x), fr.y);
+  float texArea = faceArea(face)/float(TT*TT);
+  return flux * uWlNorm * uPhScale / texArea;
+}
+
+/* ---- scene ----
+   mat: 0 charcoal wall | 1 projection wall | 2 floor | 3 ceiling
+        4 plinth | 5 lamp body | 6 GLASS | 7 light rect | 8 lamp aperture */
+struct Hit { float t; vec3 n; int mat; int face; bool inGlass; };
+Hit sceneI(vec3 o, vec3 d, bool inside){
+  Hit h; h.t = 1e9; h.mat = -1; h.face = -1; h.inGlass = false;
+  int face; vec3 n;
+  float tr = roomI(o,d,face,n);
+  if(tr < h.t){
+    h.t = tr; h.n = n; h.face = face;
+    vec3 p = o + d*tr;
+    if(face==5) h.mat = 1;
+    else if(face==2) h.mat = 2;
+    else if(face==3){
+      h.mat = 3;
+      if(abs(p.x-uLightRect.x) < uLightRect.z && abs(p.z-uLightRect.y) < uLightRect.w) h.mat = 7;
+    }
+    else h.mat = 0;
+  }
+  float tb; vec3 nb;
+  if(boxI(o,d,uPlinthMin,uPlinthMax,tb,nb) && tb < h.t){ h.t=tb; h.n=nb; h.mat=4; h.face=-1; }
+  vec3 lmn = uLampPos - vec3(.13,.11,.13), lmx = uLampPos + vec3(.13,.11,.13);
+  if(boxI(o,d,lmn,lmx,tb,nb) && tb < h.t){ h.t=tb; h.n=nb; h.mat=5; h.face=-1; }
+  float ts = sphereI(o,d,uLampPos+uLampDir*.145,.055);
+  if(ts < h.t){ h.t=ts; h.n=-uLampDir; h.mat=8; h.face=-1; }
+  float tN,tF; vec3 nN,nF;
+  if(prismI(o,d,tN,tF,nN,nF)){
+    float tg = inside ? tF : (tN > 1e-4 ? tN : 1e9);
+    if(tg < h.t && tg > 1e-4){
+      h.t = tg; h.n = inside ? nF : nN; h.mat = 6; h.face = -1; h.inGlass = inside;
+    }
+  }
+  return h;
+}
+/* shadow: anything between p and q? (glass counts as blocker) */
+bool occluded(vec3 p, vec3 q){
+  vec3 d = q-p; float L = length(d); d /= L;
+  float tN,tF; vec3 nN,nF;
+  if(prismI(p,d,tN,tF,nN,nF) && tN > 1e-4 && tN < L-1e-3) return true;
+  float t; vec3 n;
+  if(boxI(p,d,uPlinthMin,uPlinthMax,t,n) && t < L-1e-3) return true;
+  vec3 lmn = uLampPos - vec3(.13,.11,.13), lmx = uLampPos + vec3(.13,.11,.13);
+  if(boxI(p,d,lmn,lmx,t,n) && t < L-1e-3) return true;
+  return false;
+}
+
+vec3 cosineDir(vec3 n){
+  float r1 = rnd()*2.*PI, r2 = rnd();
+  float sr = sqrt(r2);
+  vec3 u = normalize(cross(abs(n.y)<.9?vec3(0,1,0):vec3(1,0,0), n));
+  vec3 v = cross(n,u);
+  return normalize(u*cos(r1)*sr + v*sin(r1)*sr + n*sqrt(max(1.-r2,0.)));
+}
+/* next-event estimation to the ceiling area light */
+vec3 nee(vec3 p, vec3 n, vec3 albedo){
+  vec3 lp = vec3(uLightRect.x + (rnd()*2.-1.)*uLightRect.z,
+                 uRoom.y - .001,
+                 uLightRect.y + (rnd()*2.-1.)*uLightRect.w);
+  vec3 ld = lp - p;
+  float d2 = dot(ld,ld), L = sqrt(d2);
+  ld /= L;
+  float cosS = dot(n, ld);
+  float cosL = ld.y;           // light normal (0,-1,0)
+  if(cosS <= 0. || cosL <= 0.) return vec3(0);
+  if(occluded(p + n*1e-3, lp)) return vec3(0);
+  float A = 4.*uLightRect.z*uLightRect.w;
+  return uLightE * albedo/PI * cosS * cosL * A / d2;
+}
+/* volumetric in-scatter from the beam tree (1 stochastic point per segment) */
+vec3 fogGather(vec3 o, vec3 d, float tmax){
+  vec3 acc = vec3(0);
+  for(int i=0;i<48;i++){
+    if(i >= uSegN) break;
+    vec3 A = uSegA[i], B = uSegB[i];
+    vec3 ab = B-A;
+    float L = length(ab);
+    if(L < 1e-4) continue;
+    vec3 u = ab/L;
+    vec3 P = A + u*(rnd()*L);
+    vec3 w = P-o;
+    float tp = dot(w,d);
+    float h2 = max(dot(w,w) - tp*tp, 0.) + .0006;
+    float h = sqrt(h2);
+    float integ = (atan((tmax-tp)/h) + atan(tp/h))/h;
+    float phase = .3 + .9*pow(max(dot(d,u),0.), 4.);
+    acc += uSegC[i]*uWlNorm * L * integ * phase;
+  }
+  return acc * uFog * uPower * .02;
+}
+
+void main(){
+  ivec2 px = ivec2(gl_FragCoord.xy);
+  seed = uint(px.x)*1973u ^ uint(px.y)*9277u ^ uFrame*26699u;
+  seed = hashu(seed);
+  vec2 jit = vec2(rnd(), rnd()) - .5;
+  vec2 ndc = ((gl_FragCoord.xy + jit)/uRes)*2. - 1.;
+  vec3 pd = normalize(uCam * vec3(ndc.x*uFovT*uRes.x/uRes.y, ndc.y*uFovT, -1.));
+  vec3 d = pd, o = uEye;
+
+  float lam = 400. + 300.*rnd();
+  float um = lam/1000.;
+  float ior = uNd + uB*(1./(um*um) - 1./(0.5876*0.5876));
+  bool chrom = false, spec = true, inside = false;
+  vec3 thr = vec3(1), acc = vec3(0);
+  int diff = 0;
+  float tFirst = 60.;
+
+  for(int b=0;b<9;b++){
+    Hit h = sceneI(o,d,inside);
+    if(h.mat < 0) break;
+    vec3 p = o + d*h.t;
+    if(b==0) tFirst = h.t;
+    if(inside) thr *= exp(-.35*h.t);          // Beer–Lambert in glass
+    if(h.mat == 7){ if(spec) acc += thr*uLightE; break; }
+    if(h.mat == 8){ if(spec) acc += thr*vec3(1.,.96,.88)*uPower*9.; break; }
+    if(h.mat == 6){
+      if(!chrom){ thr *= wl2rgb(lam)*uWlNorm; chrom = true; }
+      vec3 n = h.n;
+      float cosI = -dot(d,n);
+      if(cosI < 0.){ n = -n; cosI = -cosI; }
+      float n1 = inside?ior:1., n2 = inside?1.:ior;
+      float eta = n1/n2;
+      float sinT2 = eta*eta*(1.-cosI*cosI);
+      float R = 1., cosT = 0.;
+      if(sinT2 < 1.){
+        cosT = sqrt(1.-sinT2);
+        float rs = (n1*cosI-n2*cosT)/(n1*cosI+n2*cosT);
+        float rp = (n1*cosT-n2*cosI)/(n1*cosT+n2*cosI);
+        R = (rs*rs+rp*rp)*.5;
+      }
+      if(rnd() < R) d = normalize(d + 2.*cosI*n);
+      else { d = normalize(eta*d + (eta*cosI-cosT)*n); inside = !inside; }
+      o = p + d*3e-4;
+      spec = true;
+      continue;
+    }
+    /* matte / glossy surfaces */
+    vec3 alb = h.mat==0 ? vec3(.10,.105,.12)
+             : h.mat==1 ? vec3(.80,.77,.70)
+             : h.mat==2 ? vec3(.06,.055,.05)
+             : h.mat==3 ? vec3(.09,.09,.095)
+             : h.mat==4 ? vec3(.075,.072,.07) : vec3(.035,.035,.04);
+    vec3 n = h.n;
+    if(h.mat == 2){                            // semi-gloss floor
+      float F = .05 + .95*pow(1.-max(-dot(d,n),0.), 5.);
+      F = mix(F*.3, max(F,.08), uGloss);
+      if(rnd() < F){
+        float rough = mix(.38,.025,uGloss);
+        vec3 rd = reflect(d,n);
+        rd = normalize(rd + rough*(vec3(rnd(),rnd(),rnd())*2.-1.));
+        if(dot(rd,n) > 0.){ d = rd; o = p + n*1e-3; spec = true; continue; }
+      }
+    }
+    if(h.face >= 0) acc += thr * alb/PI * photonIrr(h.face, p);   // caustics + beam spots
+    acc += thr * nee(p, n, alb);                                   // soft room light + shadows
+    diff++;
+    if(diff >= 2 || b >= 7) break;
+    thr *= alb;
+    d = cosineDir(n);
+    o = p + n*1e-3;
+    spec = false;
+  }
+  acc += fogGather(uEye, pd, tFirst);
+
+  vec3 prev = (uSpp > .5) ? texelFetch(uPrev, px, 0).rgb : vec3(0);
+  frag = vec4(prev + clamp(acc, vec3(0), vec3(80)), uSpp + 1.);
+}`;
+
+const FS_BRIGHT = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 frag;
+uniform sampler2D uAcc;
+void main(){
+  vec4 a = texture(uAcc, vUv);
+  vec3 c = a.rgb / max(a.a, 1.);
+  frag = vec4(max(c - 1.15, 0.), 1.);
+}`;
+
+const FS_BLUR = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 frag;
+uniform sampler2D uT;
+uniform vec2 uDir;
+void main(){
+  float w[5] = float[](.227027,.194594,.121621,.054054,.016216);
+  vec3 c = texture(uT, vUv).rgb * w[0];
+  for(int i=1;i<5;i++){
+    c += texture(uT, vUv + uDir*float(i)).rgb * w[i];
+    c += texture(uT, vUv - uDir*float(i)).rgb * w[i];
+  }
+  frag = vec4(c,1.);
+}`;
+
+const FS_FINAL = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 frag;
+uniform sampler2D uAcc;
+uniform sampler2D uBloom;
+uniform float uExposure, uTime;
+vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14), 0., 1.); }
+void main(){
+  vec4 a = texture(uAcc, vUv);
+  vec3 c = a.rgb / max(a.a, 1.);
+  c += texture(uBloom, vUv).rgb * .55;
+  c *= uExposure * 1.5;
+  c = aces(c);
+  float g = fract(sin(dot(vUv + fract(uTime), vec2(12.9898,78.233)))*43758.5453) - .5;
+  c += g*.014;
+  float v = smoothstep(1.15,.3,length(vUv-.5));
+  c *= mix(.72,1.,v);
+  c = pow(c, vec3(1./2.2));
+  frag = vec4(c,1.);
+}`;
+
+/* ============ GL resources ============ */
+const progPT     = program(VS, FS_PT);
+const progBright = program(VS, FS_BRIGHT);
+const progBlur   = program(VS, FS_BLUR);
+const progFinal  = program(VS, FS_FINAL);
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+function uniforms(prog) {
+  const cache = {};
+  return name => (name in cache) ? cache[name] : (cache[name] = gl.getUniformLocation(prog, name));
+}
+const uPT = uniforms(progPT), uBR = uniforms(progBright),
+      uBL = uniforms(progBlur), uFN = uniforms(progFinal);
+
+function makeTarget(w, h, filter, fmt) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, fmt, w, h);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  return { tex, fbo, w, h };
+}
+
+/* photon atlas texture (upload only, RGBA32F is fine for sampling) */
+const phTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, phTex);
+gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, AW, AH);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+let accA = null, accB = null, bloomA = null, bloomB = null;
+let RW = 0, RH = 0;
+
+function makeTargets() {
+  const dpr = Math.min(1, window.devicePixelRatio || 1);
+  canvas.width = innerWidth * (window.devicePixelRatio || 1);
+  canvas.height = innerHeight * (window.devicePixelRatio || 1);
+  RW = Math.max(64, Math.round(innerWidth * dpr * .75));
+  RH = Math.max(64, Math.round(innerHeight * dpr * .75));
+  for (const t of [accA, accB, bloomA, bloomB]) {
+    if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); }
+  }
+  /* accum: 32F preferred (sum precision); LINEAR only if float-linear filtering exists.
+     bloom: RGBA16F — filterable in core WebGL2, renderable with either float ext. */
+  const accFilter = (ACC_FMT === gl.RGBA16F || LIN_OK) ? gl.LINEAR : gl.NEAREST;
+  accA = makeTarget(RW, RH, accFilter, ACC_FMT);
+  accB = makeTarget(RW, RH, accFilter, ACC_FMT);
+  bloomA = makeTarget(RW >> 2, RH >> 2, gl.LINEAR, gl.RGBA16F);
+  bloomB = makeTarget(RW >> 2, RH >> 2, gl.LINEAR, gl.RGBA16F);
+}
+
+/* ============ camera ============ */
+const cam = { yaw: 2.72, pitch: .2, dist: 5.0, target: [.5, .9, .6] };
+if (location.hash.length > 1) {              // #yaw,pitch,dist,tx,ty,tz — deep-linkable view
+  const h = location.hash.slice(1).split(',').map(parseFloat);
+  if (h.length === 6 && h.every(isFinite)) {
+    cam.yaw = h[0]; cam.pitch = h[1]; cam.dist = h[2]; cam.target = [h[3], h[4], h[5]];
+  }
+}
+function camEye() {
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  const e = [
+    cam.target[0] + cam.dist * cp * Math.sin(cam.yaw),
+    cam.target[1] + cam.dist * sp,
+    cam.target[2] + cam.dist * cp * Math.cos(cam.yaw)
+  ];
+  e[0] = Math.min(ROOM.x - .15, Math.max(-ROOM.x + .15, e[0]));
+  e[1] = Math.min(ROOM.y - .12, Math.max(.15, e[1]));
+  e[2] = Math.min(ROOM.z - .15, Math.max(-ROOM.z + .15, e[2]));
+  return e;
+}
+function camBasis(e) {
+  const f = norm3([cam.target[0]-e[0], cam.target[1]-e[1], cam.target[2]-e[2]]);
+  const r = norm3([-f[2], 0, f[0]]);                                          // cross(f, worldUp)
+  const up = [r[1]*f[2]-r[2]*f[1], r[2]*f[0]-r[0]*f[2], r[0]*f[1]-r[1]*f[0]]; // cross(r, f)
+  return new Float32Array([r[0],r[1],r[2], up[0],up[1],up[2], -f[0],-f[1],-f[2]]);
+}
+const FOV_T = Math.tan(38 * Math.PI / 360);
+
+/* ============ progressive state ============ */
+let spp = 0, frameId = 0, needReset = true;
+let photonBudget = 14000;
+const PHOTON_CAP = 5e6;
+
+function doReset() {
+  needReset = false;
+  spp = 0;
+  atlas.fill(0);
+  photonsEmitted = 0;
+  rngState = 987654321;
+  buildPlanes();
+  buildBeamTree();
+  gl.bindTexture(gl.TEXTURE_2D, phTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, AW, AH, gl.RGBA, gl.FLOAT, atlas);
+}
+
+function uploadStatic() {
+  const nArr = new Float32Array(15), dArr = new Float32Array(5);
+  PLANES.forEach((p, i) => { nArr.set(p.n, i*3); dArr[i] = p.d; });
+  gl.uniform3fv(uPT('uPlN[0]'), nArr);
+  gl.uniform1fv(uPT('uPlD[0]'), dArr);
+  const pb = plinthBox();
+  gl.uniform3fv(uPT('uPlinthMin'), pb[0]);
+  gl.uniform3fv(uPT('uPlinthMax'), pb[1]);
+  gl.uniform3fv(uPT('uLampPos'), [lamp.x, lamp.y, lamp.z]);
+  gl.uniform3fv(uPT('uLampDir'), beamDir());
+  gl.uniform4fv(uPT('uLightRect'), [LIGHT.cx, LIGHT.cz, LIGHT.hx, LIGHT.hz]);
+  gl.uniform3fv(uPT('uLightE'), [LIGHT.rgb[0]*LIGHT.I, LIGHT.rgb[1]*LIGHT.I, LIGHT.rgb[2]*LIGHT.I]);
+  const sa = new Float32Array(SEG_MAX*3), sb = new Float32Array(SEG_MAX*3), sc = new Float32Array(SEG_MAX*3);
+  SEGS.forEach((s, i) => { sa.set(s.a, i*3); sb.set(s.b, i*3); sc.set(s.c, i*3); });
+  gl.uniform3fv(uPT('uSegA[0]'), sa);
+  gl.uniform3fv(uPT('uSegB[0]'), sb);
+  gl.uniform3fv(uPT('uSegC[0]'), sc);
+  gl.uniform1i(uPT('uSegN'), SEGS.length);
+  gl.uniform3fv(uPT('uWlNorm'), WLNORM);
+  gl.uniform3fv(uPT('uRoom'), [ROOM.x, ROOM.y, ROOM.z]);
+  gl.uniform1f(uPT('uNd'), params.nd);
+  gl.uniform1f(uPT('uB'), params.B);
+  gl.uniform1f(uPT('uPower'), params.power);
+  gl.uniform1f(uPT('uFog'), params.fog);
+  gl.uniform1f(uPT('uGloss'), params.gloss);
+}
+
+function drawQuad() { gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
+
+/* ============ frame ============ */
+let last = performance.now(), sppEl = $('spp').querySelector('b');
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000);
+  last = now;
+  frameId++;
+
+  if (params.rotate) { prism.rot += dt * .12; needReset = true; }
+  if (needReset) doReset();
+
+  /* photon pass (CPU) — adaptive budget, capped total */
+  if (photonsEmitted < PHOTON_CAP) {
+    const t0 = performance.now();
+    for (let i = 0; i < photonBudget; i++) tracePhoton(rng);
+    photonsEmitted += photonBudget;
+    const ms = performance.now() - t0;
+    if (ms < 4) photonBudget = Math.min(60000, photonBudget * 1.3 | 0);
+    else if (ms > 9) photonBudget = Math.max(4000, photonBudget * .7 | 0);
+    gl.bindTexture(gl.TEXTURE_2D, phTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, AW, AH, gl.RGBA, gl.FLOAT, atlas);
+  }
+
+  /* path-trace one sample into accB (reading accA) */
+  gl.bindVertexArray(vao);
+  gl.viewport(0, 0, RW, RH);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, accB.fbo);
+  gl.useProgram(progPT);
+  uploadStatic();
+  const eye = camEye();
+  gl.uniform2f(uPT('uRes'), RW, RH);
+  gl.uniform1ui(uPT('uFrame'), frameId >>> 0);
+  gl.uniform1f(uPT('uSpp'), spp);
+  gl.uniform3fv(uPT('uEye'), eye);
+  gl.uniformMatrix3fv(uPT('uCam'), false, camBasis(eye));
+  gl.uniform1f(uPT('uFovT'), FOV_T);
+  gl.uniform1f(uPT('uPhScale'), photonsEmitted > 0 ? params.power * 0.22 / photonsEmitted : 0);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, accA.tex);
+  gl.uniform1i(uPT('uPrev'), 0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, phTex);
+  gl.uniform1i(uPT('uPhoton'), 1);
+  drawQuad();
+  const tmp = accA; accA = accB; accB = tmp;
+  spp++;
+
+  /* bloom: bright pass → blur H → blur V */
+  gl.viewport(0, 0, bloomA.w, bloomA.h);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, bloomA.fbo);
+  gl.useProgram(progBright);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, accA.tex);
+  gl.uniform1i(uBR('uAcc'), 0);
+  drawQuad();
+  gl.useProgram(progBlur);
+  gl.uniform1i(uBL('uT'), 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, bloomB.fbo);
+  gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
+  gl.uniform2f(uBL('uDir'), 1.6 / bloomA.w, 0);
+  drawQuad();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, bloomA.fbo);
+  gl.bindTexture(gl.TEXTURE_2D, bloomB.tex);
+  gl.uniform2f(uBL('uDir'), 0, 1.6 / bloomA.h);
+  drawQuad();
+
+  /* composite to screen */
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.useProgram(progFinal);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, accA.tex);
+  gl.uniform1i(uFN('uAcc'), 0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
+  gl.uniform1i(uFN('uBloom'), 1);
+  gl.uniform1f(uFN('uExposure'), params.exposure);
+  gl.uniform1f(uFN('uTime'), now / 1000 % 1);
+  drawQuad();
+
+  if (frameId % 12 === 0) sppEl.textContent = spp;
+  requestAnimationFrame(frame);
+}
+
+/* ============ interaction ============ */
+function mouseRay(e) {
+  const ndx = (e.clientX / innerWidth) * 2 - 1;
+  const ndy = -((e.clientY / innerHeight) * 2 - 1);
+  const eye = camEye();
+  const B = camBasis(eye);
+  const r = [B[0], B[1], B[2]], u = [B[3], B[4], B[5]], f = [-B[6], -B[7], -B[8]];
+  const px = ndx * FOV_T * (innerWidth / innerHeight), py = ndy * FOV_T;
+  return { o: eye, d: norm3([r[0]*px + u[0]*py + f[0], r[1]*px + u[1]*py + f[1], r[2]*px + u[2]*py + f[2]]) };
+}
+function rayPointDist(o, d, p) {
+  const w = [p[0]-o[0], p[1]-o[1], p[2]-o[2]];
+  const t = dot3(w, d);
+  if (t < 0) return 1e9;
+  return Math.hypot(w[0]-d[0]*t, w[1]-d[1]*t, w[2]-d[2]*t);
+}
+function planeY(o, d, h) {
+  if (Math.abs(d[1]) < 1e-6) return null;
+  const t = (h - o[1]) / d[1];
+  if (t < 0) return null;
+  return [o[0] + d[0]*t, h, o[2] + d[2]*t];
+}
+
+let drag = null; // 'orbit' | 'prism' | 'lamp'
+let lastPX = 0, lastPY = 0;
+canvas.addEventListener('pointerdown', e => {
+  const ray = mouseRay(e);
+  const pc = [prism.x, prism.baseY + prism.h, prism.z];
+  if (rayPointDist(ray.o, ray.d, pc) < .72) drag = 'prism';
+  else if (rayPointDist(ray.o, ray.d, [lamp.x, lamp.y, lamp.z]) < .3) drag = 'lamp';
+  else drag = 'orbit';
+  lastPX = e.clientX; lastPY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+  canvas.style.cursor = 'grabbing';
+});
+canvas.addEventListener('pointermove', e => {
+  if (!drag) {
+    const ray = mouseRay(e);
+    const hot = rayPointDist(ray.o, ray.d, [prism.x, prism.baseY + prism.h, prism.z]) < .72
+             || rayPointDist(ray.o, ray.d, [lamp.x, lamp.y, lamp.z]) < .3;
+    canvas.style.cursor = hot ? 'grab' : 'default';
+    return;
+  }
+  const dx = e.clientX - lastPX, dy = e.clientY - lastPY;
+  lastPX = e.clientX; lastPY = e.clientY;
+  if (drag === 'orbit') {
+    cam.yaw -= dx * .0045;
+    cam.pitch = Math.min(1.25, Math.max(-.05, cam.pitch + dy * .0045));
+  } else if (drag === 'prism') {
+    const hit = planeY(mouseRay(e).o, mouseRay(e).d, prism.baseY + prism.h);
+    if (hit) {
+      prism.x = Math.min(ROOM.x - 1, Math.max(-ROOM.x + 1, hit[0]));
+      prism.z = Math.min(ROOM.z - 1, Math.max(-ROOM.z + 1, hit[2]));
+    }
+  } else if (drag === 'lamp') {
+    if (e.shiftKey) {
+      lamp.y = Math.min(ROOM.y - .35, Math.max(.3, lamp.y - dy * .008));
+    } else {
+      const hit = planeY(mouseRay(e).o, mouseRay(e).d, lamp.y);
+      if (hit) {
+        lamp.x = Math.min(ROOM.x - .3, Math.max(-ROOM.x + .3, hit[0]));
+        lamp.z = Math.min(ROOM.z - .3, Math.max(-ROOM.z + .3, hit[2]));
+      }
+    }
+  }
+  needReset = true;
+});
+addEventListener('pointerup', () => { drag = null; canvas.style.cursor = 'default'; });
+addEventListener('wheel', e => {
+  if (e.target.closest && e.target.closest('#panel')) return;
+  cam.dist = Math.min(7.5, Math.max(1.2, cam.dist * (1 + e.deltaY * .0011)));
+  needReset = true;
+}, { passive: true });
+addEventListener('keydown', e => {
+  if (e.key === 'q' || e.key === 'Q') { prism.rot -= .07; needReset = true; }
+  if (e.key === 'e' || e.key === 'E') { prism.rot += .07; needReset = true; }
+});
+
+/* ============ panel ============ */
+function bind(slider, out, fmt, apply, resets) {
+  $(slider).addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    $(out).textContent = fmt(v);
+    apply(v);
+    if (resets) needReset = true;
+    updateAbbe();
+  });
+}
+bind('s-ior',   'v-ior',   v => v.toFixed(3), v => params.nd = v,       true);
+bind('s-disp',  'v-disp',  v => v.toFixed(3), v => params.B = v,        true);
+bind('s-pow',   'v-pow',   v => v.toFixed(2), v => params.power = v,    true);
+bind('s-fog',   'v-fog',   v => v.toFixed(2), v => params.fog = v,      true);
+bind('s-gloss', 'v-gloss', v => v.toFixed(2), v => params.gloss = v,    true);
+bind('s-exp',   'v-exp',   v => v.toFixed(2), v => params.exposure = v, false);
+const cRot = $('c-rot');
+cRot.addEventListener('click', () => {
+  params.rotate = !params.rotate;
+  cRot.classList.toggle('on', params.rotate);
+});
+function updateAbbe() {
+  const nF = nOf(LAMBDA_F), nC = nOf(LAMBDA_C), nd = nOf(LAMBDA_D);
+  const V = (nF - nC) > 1e-9 ? (nd - 1) / (nF - nC) : Infinity;
+  $('abbe').innerHTML = `n_d <b>${nd.toFixed(3)}</b> · Abbe V_d <b>${V === Infinity ? '∞' : V.toFixed(1)}</b>`;
+}
+
+/* ============ boot ============ */
+addEventListener('resize', () => { makeTargets(); needReset = true; });
+makeTargets();
+updateAbbe();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

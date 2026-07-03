@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prism — the physics of rainbows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#08090d;
+    --gold:#e3a43b;
+    --bone:#efe9dc;
+    --mono:'IBM Plex Mono', monospace;
+    --serif:'Shippori Mincho', serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink)}
+  body{font-family:var(--mono);color:var(--bone)}
+  #stage{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+
+  .grain{
+    position:fixed;inset:0;pointer-events:none;opacity:.4;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.25 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .vignette{
+    position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(120% 95% at 50% 45%, transparent 52%, rgba(2,3,6,.72) 100%);
+  }
+
+  header{position:fixed;top:0;left:0;z-index:5;padding:28px 36px;pointer-events:none}
+  h1{
+    font-family:var(--serif);font-weight:800;font-size:clamp(22px,3vw,34px);
+    letter-spacing:.14em;line-height:1;display:flex;align-items:baseline;gap:14px;
+    text-shadow:0 2px 18px rgba(0,0,0,.6);
+  }
+  h1 .kanji{color:var(--gold);font-size:1.35em;text-shadow:0 0 26px rgba(227,164,59,.45)}
+  .sub{margin-top:10px;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:rgba(239,233,220,.62)}
+
+  #panel{
+    position:fixed;right:28px;top:50%;transform:translateY(-50%);z-index:5;
+    width:238px;padding:20px 20px 16px;
+    background:rgba(6,8,12,.66);backdrop-filter:blur(10px);
+    border:1px solid rgba(239,233,220,.22);border-radius:14px;
+    box-shadow:0 12px 44px rgba(0,0,0,.55);
+  }
+  #panel .p-title{
+    font-size:10px;letter-spacing:.34em;color:rgba(239,233,220,.55);
+    text-transform:uppercase;margin-bottom:6px;
+  }
+  #abbe{
+    font-size:9.5px;letter-spacing:.12em;color:rgba(239,233,220,.45);
+    margin-bottom:14px;white-space:nowrap;
+  }
+  #abbe b{color:var(--gold);font-weight:500}
+  .shapes{display:flex;gap:6px;margin-bottom:16px}
+  .shapes button{
+    flex:1;appearance:none;border:1px solid rgba(239,233,220,.25);background:none;
+    border-radius:999px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+    padding:7px 2px;color:rgba(239,233,220,.65);cursor:pointer;transition:all .25s;
+  }
+  .shapes button:hover{border-color:var(--gold);color:var(--bone)}
+  .shapes button.on{background:var(--gold);border-color:var(--gold);color:#141008}
+  .ctl{margin-bottom:12px}
+  .ctl label{
+    display:flex;justify-content:space-between;
+    font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(239,233,220,.72);margin-bottom:6px;
+  }
+  .ctl label span:last-child{color:var(--gold)}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:4px;border-radius:999px;
+    background:rgba(239,233,220,.18);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--gold);box-shadow:0 0 10px rgba(227,164,59,.6);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border:0;border-radius:50%;
+    background:var(--gold);box-shadow:0 0 10px rgba(227,164,59,.6);
+  }
+  .check{
+    display:flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:rgba(239,233,220,.72);cursor:pointer;user-select:none;
+  }
+  .check .box{
+    width:13px;height:13px;border:1px solid rgba(239,233,220,.4);border-radius:3px;
+    display:grid;place-items:center;font-size:9px;color:#141008;transition:all .2s;
+  }
+  .check.on .box{background:var(--gold);border-color:var(--gold)}
+
+  footer{
+    position:fixed;bottom:0;left:0;right:0;z-index:5;pointer-events:none;
+    display:flex;justify-content:space-between;align-items:flex-end;
+    padding:22px 36px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+    color:rgba(239,233,220,.5);
+  }
+  footer .dot{color:var(--gold)}
+  footer b{font-weight:500;color:rgba(239,233,220,.75)}
+  footer a{color:var(--gold);text-decoration:none;pointer-events:auto}
+  footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<div id="panel">
+  <div class="p-title">— the glass —</div>
+  <div id="abbe">n_d 1.520 · Abbe V_d 36.2</div>
+  <div class="shapes" id="shapes">
+    <button data-s="tri" class="on">PRISM</button>
+    <button data-s="square">SLAB</button>
+    <button data-s="penta">PENTA</button>
+    <button data-s="lens">DROP</button>
+  </div>
+  <div class="ctl">
+    <label><span>index n_d</span><span id="v-ior">1.520</span></label>
+    <input type="range" id="s-ior" min="1.30" max="1.90" step="0.005" value="1.52">
+  </div>
+  <div class="ctl">
+    <label><span>dispersion</span><span id="v-disp">0.016</span></label>
+    <input type="range" id="s-disp" min="0" max="0.05" step="0.001" value="0.016">
+  </div>
+  <div class="ctl">
+    <label><span>spectral rays</span><span id="v-rays">24</span></label>
+    <input type="range" id="s-rays" min="8" max="48" step="1" value="24">
+  </div>
+  <div class="ctl">
+    <label><span>max bounces</span><span id="v-bounce">6</span></label>
+    <input type="range" id="s-bounce" min="2" max="12" step="1" value="6">
+  </div>
+  <div class="ctl">
+    <label><span>beam power</span><span id="v-pow">1.5</span></label>
+    <input type="range" id="s-pow" min="0.4" max="3" step="0.05" value="1.5">
+  </div>
+  <div class="check on" id="c-flow"><span class="box">✓</span><span>photon flow</span></div>
+</div>
+
+<footer>
+  <span><b>drag</b> the prism / the lamp / the gold aim-ring &nbsp;·&nbsp; <b>scroll</b> to rotate the glass</span>
+  <span><a href="../prism3d/index.html">step into the room in 3d →</a> &nbsp;<span class="dot">◆</span>&nbsp; every ray obeys snell &amp; fresnel</span>
+</footer>
+
+<script>
+(() => {
+'use strict';
+const TAU = Math.PI * 2;
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, dpr = 1;
+
+/* ================= physics =================
+   Snell:    n1 sin θi = n2 sin θt
+   Fresnel:  Rs, Rp exact (unpolarised average), TIR when sin θt > 1
+   Cauchy:   n(λ) = n_d + B (1/λ² − 1/λ_d²), λ in µm, λ_d = 587.6 nm
+   Beer:     I *= exp(−α · path) inside the glass
+============================================== */
+const params = {
+  nd: 1.52,
+  B: 0.016,
+  K: 24,          // spectral samples
+  maxBounce: 6,
+  power: 1.5,
+  flow: true
+};
+const LAMBDA_D = .5876, LAMBDA_F = .4861, LAMBDA_C = .6563;
+const ABSORB = 0.0011;   // per px, inside glass
+const CUTOFF = 0.004;
+const EPS = 0.02;
+
+const nOf = lam => params.nd + params.B * (1 / (lam * lam) - 1 / (LAMBDA_D * LAMBDA_D));
+
+function wl2rgb(w) { // nm → linear-ish rgb
+  let r = 0, g = 0, b = 0;
+  if (w < 440)      { r = -(w - 440) / 60; b = 1; }
+  else if (w < 490) { g = (w - 440) / 50; b = 1; }
+  else if (w < 510) { g = 1; b = -(w - 510) / 20; }
+  else if (w < 580) { r = (w - 510) / 70; g = 1; }
+  else if (w < 645) { r = 1; g = -(w - 645) / 65; }
+  else              { r = 1; }
+  let s = 1;
+  if (w > 660) s = .35 + .65 * (700 - w) / 40;
+  else if (w < 420) s = .35 + .65 * (w - 380) / 40;
+  return [r * s, g * s, b * s];
+}
+
+let SPECTRUM = [];
+function buildSpectrum() {
+  SPECTRUM = [];
+  for (let i = 0; i < params.K; i++) {
+    const nm = 385 + (695 - 385) * (i + .5) / params.K;
+    SPECTRUM.push({ lam: nm / 1000, rgb: wl2rgb(nm) });
+  }
+}
+
+/* ---------- scene objects ---------- */
+const prism = { x: 0, y: 0, rot: -Math.PI / 2, kind: 'tri', size: 150 };
+const lamp  = { x: 0, y: 0, dir: 0, aimLen: 130 };
+
+const SHAPE_DEF = {
+  tri:    { n: 3, size: 165 },
+  square: { n: 4, size: 130 },
+  penta:  { n: 5, size: 140 },
+  lens:   { n: 0, size: 118 }
+};
+
+function shapeVerts() {
+  const def = SHAPE_DEF[prism.kind];
+  if (!def.n) return null;
+  const v = [];
+  for (let i = 0; i < def.n; i++) {
+    const a = prism.rot + TAU * i / def.n;
+    v.push({ x: prism.x + Math.cos(a) * def.size, y: prism.y + Math.sin(a) * def.size });
+  }
+  // ensure positive signed area so outward normals are consistent
+  let A = 0;
+  for (let i = 0; i < v.length; i++) {
+    const p = v[i], q = v[(i + 1) % v.length];
+    A += p.x * q.y - q.x * p.y;
+  }
+  if (A < 0) v.reverse();
+  return v;
+}
+
+/* ray vs current shape: nearest hit {t, p, nx, ny} with OUTWARD normal */
+function intersect(ox, oy, dx, dy, verts) {
+  let best = null;
+  if (verts) {
+    for (let i = 0; i < verts.length; i++) {
+      const a = verts[i], b = verts[(i + 1) % verts.length];
+      const ex = b.x - a.x, ey = b.y - a.y;
+      const den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const t = ((a.x - ox) * ey - (a.y - oy) * ex) / den;
+      if (t <= EPS) continue;
+      const s = (Math.abs(ex) > Math.abs(ey))
+        ? (ox + dx * t - a.x) / ex
+        : (oy + dy * t - a.y) / ey;
+      if (s < 0 || s > 1) continue;
+      if (!best || t < best.t) {
+        const el = Math.hypot(ex, ey);
+        best = { t, nx: ey / el, ny: -ex / el };
+      }
+    }
+  } else {
+    // circle
+    const R = SHAPE_DEF.lens.size;
+    const cx = ox - prism.x, cy = oy - prism.y;
+    const bq = cx * dx + cy * dy;
+    const cq = cx * cx + cy * cy - R * R;
+    const disc = bq * bq - cq;
+    if (disc > 0) {
+      const sq = Math.sqrt(disc);
+      let t = -bq - sq;
+      if (t <= EPS) t = -bq + sq;
+      if (t > EPS) {
+        const px = ox + dx * t, py = oy + dy * t;
+        best = { t, nx: (px - prism.x) / R, ny: (py - prism.y) / R };
+      }
+    }
+  }
+  if (best) { best.p = { x: ox + dx * best.t, y: oy + dy * best.t }; }
+  return best;
+}
+
+function exitT(ox, oy, dx, dy) {
+  const m = 90;
+  let t = 1e9;
+  if (dx > 1e-9) t = Math.min(t, (W + m - ox) / dx);
+  else if (dx < -1e-9) t = Math.min(t, (-m - ox) / dx);
+  if (dy > 1e-9) t = Math.min(t, (H + m - oy) / dy);
+  else if (dy < -1e-9) t = Math.min(t, (-m - oy) / dy);
+  return Math.max(t, 0);
+}
+
+/* ---------- the tracer ---------- */
+function trace() {
+  const verts = shapeVerts();
+  const segs = [], splats = [];
+  const stack = [];
+  const I0 = params.power / params.K;
+  const bx = lamp.x + Math.cos(lamp.dir) * 20;
+  const by = lamp.y + Math.sin(lamp.dir) * 20;
+  for (const sp of SPECTRUM) {
+    stack.push({
+      ox: bx, oy: by,
+      dx: Math.cos(lamp.dir), dy: Math.sin(lamp.dir),
+      I: I0, inside: false, b: 0, n: nOf(sp.lam), rgb: sp.rgb
+    });
+  }
+
+  let guard = 0;
+  while (stack.length && guard++ < 9000) {
+    const r = stack.pop();
+    if (r.I < CUTOFF || r.b > params.maxBounce) continue;
+
+    const hit = intersect(r.ox, r.oy, r.dx, r.dy, verts);
+    if (!hit) {
+      const t = exitT(r.ox, r.oy, r.dx, r.dy);
+      const px = r.ox + r.dx * t, py = r.oy + r.dy * t;
+      segs.push({ ax: r.ox, ay: r.oy, bx: px, by: py, I: r.I, rgb: r.rgb });
+      if (r.I > .02) splats.push({ x: px, y: py, I: r.I, rgb: r.rgb });
+      continue;
+    }
+
+    let I = r.I * (r.inside ? Math.exp(-ABSORB * hit.t) : 1);
+    segs.push({ ax: r.ox, ay: r.oy, bx: hit.p.x, by: hit.p.y, I, rgb: r.rgb });
+    if (I < CUTOFF) continue;
+
+    // orient normal against the ray
+    let nx = hit.nx, ny = hit.ny;
+    let cosI = -(r.dx * nx + r.dy * ny);
+    if (cosI < 0) { nx = -nx; ny = -ny; cosI = -cosI; }
+
+    const n1 = r.inside ? r.n : 1;
+    const n2 = r.inside ? 1 : r.n;
+    const eta = n1 / n2;
+    const sinT2 = eta * eta * (1 - cosI * cosI);
+
+    let R = 1; // TIR by default
+    let tdx = 0, tdy = 0;
+    if (sinT2 < 1) {
+      const cosT = Math.sqrt(1 - sinT2);
+      const rs = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT);
+      const rp = (n1 * cosT - n2 * cosI) / (n1 * cosT + n2 * cosI);
+      R = (rs * rs + rp * rp) / 2;
+      tdx = eta * r.dx + (eta * cosI - cosT) * nx;
+      tdy = eta * r.dy + (eta * cosI - cosT) * ny;
+    }
+
+    // reflected branch (same medium)
+    const rdx = r.dx + 2 * cosI * nx, rdy = r.dy + 2 * cosI * ny;
+    stack.push({
+      ox: hit.p.x + rdx * EPS * 2, oy: hit.p.y + rdy * EPS * 2,
+      dx: rdx, dy: rdy, I: I * R, inside: r.inside, b: r.b + 1, n: r.n, rgb: r.rgb
+    });
+    // refracted branch (crosses the interface)
+    if (sinT2 < 1) {
+      stack.push({
+        ox: hit.p.x + tdx * EPS * 2, oy: hit.p.y + tdy * EPS * 2,
+        dx: tdx, dy: tdy, I: I * (1 - R), inside: !r.inside, b: r.b + 1, n: r.n, rgb: r.rgb
+      });
+    }
+  }
+  return { segs, splats, verts };
+}
+
+/* ---------- dust ---------- */
+const dust = [];
+function seedDust() {
+  dust.length = 0;
+  for (let i = 0; i < 130; i++) {
+    dust.push({
+      x: Math.random() * W, y: Math.random() * H,
+      r: .5 + Math.random() * 1.4,
+      vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 3,
+      ph: Math.random() * TAU
+    });
+  }
+}
+
+/* ---------- drawing ---------- */
+function col(rgb, a) {
+  return `rgba(${(rgb[0] * 255) | 0},${(rgb[1] * 255) | 0},${(rgb[2] * 255) | 0},${a.toFixed(4)})`;
+}
+
+function draw(t, dt) {
+  ctx.fillStyle = '#08090d';
+  ctx.fillRect(0, 0, W, H);
+
+  // dust
+  ctx.fillStyle = 'rgba(196,186,158,.16)';
+  for (const d of dust) {
+    d.x += d.vx * dt; d.y += d.vy * dt;
+    if (d.x < 0) d.x += W; if (d.x > W) d.x -= W;
+    if (d.y < 0) d.y += H; if (d.y > H) d.y -= H;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r * (1 + Math.sin(t + d.ph) * .3), 0, TAU);
+    ctx.fill();
+  }
+
+  const { segs, splats, verts } = trace();
+
+  // glass body (under the rays)
+  ctx.save();
+  drawShapePath(verts);
+  const gg = ctx.createLinearGradient(prism.x, prism.y - 160, prism.x, prism.y + 160);
+  gg.addColorStop(0, 'rgba(170,205,225,.075)');
+  gg.addColorStop(1, 'rgba(120,160,190,.028)');
+  ctx.fillStyle = gg;
+  ctx.fill();
+  ctx.restore();
+
+  // rays — additive glow, three passes
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (const s of segs) {
+    const I = Math.min(1.4, s.I);
+    ctx.strokeStyle = col(s.rgb, Math.min(.09, I * .09));
+    ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by); ctx.stroke();
+    ctx.strokeStyle = col(s.rgb, Math.min(.3, I * .3));
+    ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by); ctx.stroke();
+    ctx.strokeStyle = col(s.rgb, Math.min(1, I * 1.1));
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by); ctx.stroke();
+  }
+
+  // photon flow — sparks marching along the rays
+  if (params.flow) {
+    ctx.setLineDash([3, 40]);
+    for (const s of segs) {
+      if (s.I < .05) continue;
+      ctx.lineDashOffset = -(t * 170 + ((s.ax * 13.37 + s.ay * 7.77) % 43));
+      ctx.strokeStyle = col(s.rgb, Math.min(.85, s.I * .8));
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  // wall splats — where the spectrum lands
+  for (const sp of splats) {
+    const r = 16 + 44 * Math.sqrt(sp.I);
+    const g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, r);
+    g.addColorStop(0, col(sp.rgb, Math.min(.5, sp.I * .55)));
+    g.addColorStop(1, col(sp.rgb, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(sp.x - r, sp.y - r, r * 2, r * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // glass edges on top
+  drawShapePath(verts);
+  ctx.strokeStyle = 'rgba(225,242,252,.4)';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'lighter';
+  if (verts) {
+    for (const v of verts) {
+      const g = ctx.createRadialGradient(v.x, v.y, 0, v.x, v.y, 9);
+      g.addColorStop(0, 'rgba(235,248,255,.5)');
+      g.addColorStop(1, 'rgba(235,248,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(v.x - 9, v.y - 9, 18, 18);
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  drawLamp(t);
+}
+
+function drawShapePath(verts) {
+  ctx.beginPath();
+  if (verts) {
+    ctx.moveTo(verts[0].x, verts[0].y);
+    for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
+    ctx.closePath();
+  } else {
+    ctx.arc(prism.x, prism.y, SHAPE_DEF.lens.size, 0, TAU);
+  }
+}
+
+function drawLamp(t) {
+  const flick = 1 + Math.sin(t * 9) * .05 + Math.sin(t * 23) * .03;
+  // halo
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, 46 * flick);
+  g.addColorStop(0, 'rgba(255,238,200,.5)');
+  g.addColorStop(.35, 'rgba(255,225,160,.16)');
+  g.addColorStop(1, 'rgba(255,220,150,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(lamp.x - 50, lamp.y - 50, 100, 100);
+  ctx.globalCompositeOperation = 'source-over';
+  // body
+  ctx.beginPath();
+  ctx.arc(lamp.x, lamp.y, 13, 0, TAU);
+  ctx.fillStyle = '#171a21';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(227,164,59,.9)';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(lamp.x, lamp.y, 4.5, 0, TAU);
+  ctx.fillStyle = `rgba(255,240,205,${.75 * flick})`;
+  ctx.fill();
+  // aim ring
+  const ax = lamp.x + Math.cos(lamp.dir) * lamp.aimLen;
+  const ay = lamp.y + Math.sin(lamp.dir) * lamp.aimLen;
+  ctx.beginPath();
+  ctx.arc(ax, ay, 8, 0, TAU);
+  ctx.strokeStyle = 'rgba(227,164,59,.85)';
+  ctx.setLineDash([3, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(ax, ay, 2, 0, TAU);
+  ctx.fillStyle = 'rgba(227,164,59,.9)';
+  ctx.fill();
+}
+
+/* ---------- interaction ---------- */
+let dragging = null; // 'prism' | 'lamp' | 'aim'
+function insidePrism(x, y) {
+  if (prism.kind === 'lens') return Math.hypot(x - prism.x, y - prism.y) < SHAPE_DEF.lens.size;
+  const v = shapeVerts();
+  let c = false;
+  for (let i = 0, j = v.length - 1; i < v.length; j = i++) {
+    if ((v[i].y > y) !== (v[j].y > y) &&
+        x < (v[j].x - v[i].x) * (y - v[i].y) / (v[j].y - v[i].y) + v[i].x) c = !c;
+  }
+  return c;
+}
+function hitTarget(x, y) {
+  const ax = lamp.x + Math.cos(lamp.dir) * lamp.aimLen;
+  const ay = lamp.y + Math.sin(lamp.dir) * lamp.aimLen;
+  if (Math.hypot(x - ax, y - ay) < 16) return 'aim';
+  if (Math.hypot(x - lamp.x, y - lamp.y) < 22) return 'lamp';
+  if (insidePrism(x, y)) return 'prism';
+  return null;
+}
+canvas.addEventListener('pointerdown', e => {
+  dragging = hitTarget(e.clientX, e.clientY);
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e => {
+  const x = e.clientX, y = e.clientY;
+  if (!dragging) {
+    canvas.style.cursor = hitTarget(x, y) ? 'grab' : 'default';
+    return;
+  }
+  canvas.style.cursor = 'grabbing';
+  if (dragging === 'prism') { prism.x = x; prism.y = y; }
+  else if (dragging === 'lamp') { lamp.x = x; lamp.y = y; }
+  else if (dragging === 'aim') {
+    const d = Math.hypot(x - lamp.x, y - lamp.y);
+    if (d > 4) {
+      lamp.dir = Math.atan2(y - lamp.y, x - lamp.x);
+      lamp.aimLen = Math.min(Math.max(d, 60), 320);
+    }
+  }
+});
+addEventListener('pointerup', () => { dragging = null; canvas.style.cursor = 'default'; });
+addEventListener('wheel', e => {
+  if (e.target.closest && e.target.closest('#panel')) return;
+  prism.rot += e.deltaY * .0016;
+}, { passive: true });
+
+/* ---------- panel ---------- */
+const $ = id => document.getElementById(id);
+document.querySelectorAll('#shapes button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#shapes button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    prism.kind = b.dataset.s;
+  });
+});
+function bind(slider, out, fmt, apply) {
+  $(slider).addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    $(out).textContent = fmt(v);
+    apply(v);
+    updateAbbe();
+  });
+}
+bind('s-ior', 'v-ior', v => v.toFixed(3), v => params.nd = v);
+bind('s-disp', 'v-disp', v => v.toFixed(3), v => params.B = v);
+bind('s-rays', 'v-rays', v => v.toFixed(0), v => { params.K = v; buildSpectrum(); });
+bind('s-bounce', 'v-bounce', v => v.toFixed(0), v => params.maxBounce = v);
+bind('s-pow', 'v-pow', v => v.toFixed(2), v => params.power = v);
+const cFlow = $('c-flow');
+cFlow.addEventListener('click', () => {
+  params.flow = !params.flow;
+  cFlow.classList.toggle('on', params.flow);
+});
+function updateAbbe() {
+  const nF = nOf(LAMBDA_F), nC = nOf(LAMBDA_C), nd = nOf(LAMBDA_D);
+  const V = (nF - nC) > 1e-9 ? (nd - 1) / (nF - nC) : Infinity;
+  $('abbe').innerHTML = `n_d <b>${nd.toFixed(3)}</b> · Abbe V_d <b>${V === Infinity ? '∞' : V.toFixed(1)}</b>`;
+}
+
+/* ---------- boot ---------- */
+function resize() {
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  seedDust();
+}
+addEventListener('resize', resize);
+resize();
+
+prism.x = W * .54; prism.y = H * .5;
+lamp.x = W * .16; lamp.y = H * .64;
+lamp.dir = Math.atan2(prism.y - 14 - lamp.y, prism.x - lamp.x);
+
+buildSpectrum();
+updateAbbe();
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000);
+  last = now;
+  draw(now / 1000, dt);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
